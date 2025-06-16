@@ -4,6 +4,17 @@ const display = document.getElementById('display');
 //Track if we have performed a calculation
 let justCalculated = false; // Flag to track if a calculation was just performed and will change if calculation is performed
 
+// Function to check if a character is an operator
+function isOperator(char) {
+    return ['+', '-', '*', '/'].includes(char)
+}
+
+// Function to get the last character of the display value
+function getLastChar() { // Get the last character of the display value
+    return display.value.slice(-1); // Return the last character of the display value
+}
+
+
 // Testing function to append value to display and show an alert
 function appendToDisplay(value) {
     console.log('Button pressed: ', value); 
@@ -15,22 +26,48 @@ function appendToDisplay(value) {
         justCalculated = false; // Reset the flag after appending a new value
         return;
     }
+  
 
-    // If current display show 0 and user enters a number, we wanna replace the 0 with the new number
-    if (currentValue === '0' && !isNaN(value)) {
-        display.value = value;
-    // If the current display shows 0 and the user enters decimals, keep the 0
-    } else if (currentValue === '0' && value === '.') {
-        display.value = currentValue + value;
-    } else if (value === '.') {
-    // Get the last number in the display
-        let lastNumber = currentValue.split('/[+\-*/]').pop(); // Split the current value by operators and get the last number
-    // If the last number already contains a decimal point, do not append another one
-    if (!lastNumber.includes('.')) { // Check if the last number already has a decimal point
-        display.value = currentValue + value;
+    if (justCalculated && isOperator(value)) { // If a calculation was just performed and the value is an operator, we want to append the operator to the display
+        display.value = currentValue + value; // Append the operator to the current value
+        justCalculated = false;
+        return;
     }
+
+// Handles Operators 
+    if (isOperator(value)) {
+        // Dont allow operator as first char (exception for minus)
+        if(currentValue === '0' && value !== '-') {
+            return; // If the current value is 0 and the value is not a minus sign, do not append the operator
+    }
+
+    // If the last character is already an operator, replace it
+    if (isOperator(getLastChar())) { // Check if the last character is an operator
+        display.value = currentValue.slice(0, -1) + value; // Replace the last character with the new operator
     } else {
-        display.value = currentValue + value;
+        display.value = currentValue + value; // Append the operator to the current value
+    }
+        } else if (!isNaN(value)) { // If the value is a number
+            if (currentValue === '0') {
+                display.value = value;
+            } else {
+                display.value = currentValue + value; // Append the number to the current value
+            }
+        } else if (value === '.') {  // If the value is a decimal point
+            if (currentValue === '0') {
+                display.value = currentValue + value; // If the current value is 0, append the decimal point
+            } else {
+                // Get the last number in the display (after last operator)
+                let parts = currentValue.split('/[+\-*/]'); // Split the current value by operators to get the last number
+                let lastNumber = parts[parts.length -1]; // Get the last number from the parts
+
+                // Only add decimal if number doesn't have one
+                if (!lastNumber.includes('.')) {  // Check if the last number already has a decimal point and if it doesn't, append the decimal point
+                    display.value = currentValue + value;
+                }
+            }
+        } else {
+            display.value = currentValue + value;
     }
 
     //Reset the justCalculated flag when user starts typing
