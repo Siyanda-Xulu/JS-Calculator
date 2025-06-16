@@ -1,97 +1,116 @@
 // Refrence display element
 const display = document.getElementById('display');
 
-//Track if we have performed a calculation
-let justCalculated = false; // Flag to track if a calculation was just performed and will change if calculation is performed
+// Track if we have performed a calculation
+let justCalculated = false;
 
-// Function to check if a character is an operator
 function isOperator(char) {
-    return ['+', '-', '*', '/'].includes(char)
+    return ['+', '-', '*', '/'].includes(char);
 }
 
-// Function to get the last character of the display value
-function getLastChar() { // Get the last character of the display value
-    return display.value.slice(-1); // Return the last character of the display value
+function getLastChar() {
+    return display.value.slice(-1);
 }
 
+function safeEval(expression) {
+    try {
+        let jsExpression = expression
+            .replace(/x/g, '*')
+            .replace(/÷/g, '/');
 
-// Testing function to append value to display and show an alert
+        if (!/^[0-9+\-*/.() ]+$/.test(jsExpression)){
+            throw new Error('Invalid characters in expression');
+        }
+
+        const result = Function(' "use strict"; return (' + jsExpression + ')')();
+
+        if (!isFinite(result)) {
+            throw new Error('Invalid calculation result');
+        }
+
+        return result;
+    } catch (error) {
+        console.error('Calcualtion error:', error);
+        return 'Error';
+    }
+}
+
 function appendToDisplay(value) {
-    console.log('Button pressed: ', value); 
+    console.log('Button pressed:', value);
 
     let currentValue = display.value;
 
-    if (justCalculated && !isNaN(value)) { // If a calculation was just performed and the value is not a numbre than is will return true but because of the execution order(!) it will not append the value and will return false.
+    if (justCalculated && !isNaN(value)) {
         display.value = value;
-        justCalculated = false; // Reset the flag after appending a new value
-        return;
-    }
-  
-
-    if (justCalculated && isOperator(value)) { // If a calculation was just performed and the value is an operator, we want to append the operator to the display
-        display.value = currentValue + value; // Append the operator to the current value
         justCalculated = false;
         return;
     }
 
-// Handles Operators 
-    if (isOperator(value)) {
+    if (justCalculated && isOperator(value)) {
+        display.value = currentValue + value;
+        justCalculated = false;
+        return;
+    }
+
+    // Handles operators
+    if (isOperator(value)){
         // Dont allow operator as first char (exception for minus)
-        if(currentValue === '0' && value !== '-') {
-            return; // If the current value is 0 and the value is not a minus sign, do not append the operator
-    }
+        if (currentValue === '0' && value !== '-'){
+            return; // Do nothing
+        }
 
-    // If the last character is already an operator, replace it
-    if (isOperator(getLastChar())) { // Check if the last character is an operator
-        display.value = currentValue.slice(0, -1) + value; // Replace the last character with the new operator
-    } else {
-        display.value = currentValue + value; // Append the operator to the current value
-    }
-        } else if (!isNaN(value)) { // If the value is a number
-            if (currentValue === '0') {
-                display.value = value;
-            } else {
-                display.value = currentValue + value; // Append the number to the current value
-            }
-        } else if (value === '.') {  // If the value is a decimal point
-            if (currentValue === '0') {
-                display.value = currentValue + value; // If the current value is 0, append the decimal point
-            } else {
-                // Get the last number in the display (after last operator)
-                let parts = currentValue.split('/[+\-*/]'); // Split the current value by operators to get the last number
-                let lastNumber = parts[parts.length -1]; // Get the last number from the parts
-
-                // Only add decimal if number doesn't have one
-                if (!lastNumber.includes('.')) {  // Check if the last number already has a decimal point and if it doesn't, append the decimal point
-                    display.value = currentValue + value;
-                }
-            }
+        // If the last character is already an operator, replace it
+        if (isOperator(getLastChar())) {
+            display.value = currentValue.slice(0, -1) + value;
         } else {
             display.value = currentValue + value;
+        }
+
+    } else if (!isNaN(value)){
+
+        if (currentValue === '0'){
+            display.value = value;
+        } else {
+            display.value = currentValue + value;
+        }
+
+    } else if (value === '.' ) {
+
+        if (currentValue === '0') {
+            display.value = currentValue + value;
+        } else {
+            // Get the last number in the display (after last operator)
+            let parts = currentValue.split('/[+\-*/');
+            let lastNumber = parts[parts.length - 1];
+
+            // Only add decimal if number doesn't already have one
+            if (!lastNumber.includes('.')){
+                display.value = currentValue + value;
+            }
+        }
+    } else {
+        display.value = currentValue + value;
     }
 
-    //Reset the justCalculated flag when user starts typing
+    // Reset the justCalculated flag when user starts typing
     justCalculated = false;
 
     console.log('Display updated to: ', display.value);
 }
 
-   
-
-// Testing function to clear the display and show an alert
 function clearDisplay() {
-    console.log('Clear button presssed.');
+    console.log('Clear button pressed.');
 
-    display.value = '0'; // Reset the display to 0
-    justCalculated = false; // Reset the flag after clearing the display
+    display.value = '0';
+    justCalculated = false;
 
-    display.style.backgroundColor = '#f0f0f0'; 
-    setTimeout(() => { // Reset the background color after 150ms
+    display.style.backgroundColor = '#f0f0f0';
+    setTimeout(() => {
         display.style.backgroundColor = '';
-   }, 150); 
+    }, 150);
+
 }
 
-// Testing function to delete the last character from the display and show an alert
 function deleteLast() {
     console.log('Backspace button pressed.');
 
@@ -101,48 +120,75 @@ function deleteLast() {
     if (currentValue.length <= 1 || currentValue === '0') {
         display.value = '0';
     } else {
-        display.value = currentValue.slice(0, -1); // Remove the last character
+        display.value = currentValue.slice(0, -1);
     }
 }
 
-// Testing function to perform a calculation and show an alert
 function calculate() {
-    console.log('Equals button pressed.');
+    let expression = display.value;
 
-    alert('Equals button was clicked');
+    // Dont calc if display is 0 or empty
+    if (expression === '0' || expression === ''){
+        return;
+    }
+
+    // Dont calc if expression ends with operator
+    if (isOperator(getLastChar())){
+        return;
+    }
+
+    let result = safeEval(expression);
+
+    if (result === 'Error') {
+        display.value = 'Error';
+        setTimeout(() => {
+            clearDisplay()
+        }, 2000);
+    } else {
+        if (Number.isInteger(result)) {
+            display.value = result.toString();
+        } else {
+            display.value = parseFloat(result.toFixed(10)).toString();
+        }
+
+        justCalculated = true;
+    }
+
+    display.style.backgroundColor = '#e8f5e8';
+    setTimeout(() => {
+        display.style.backgroundColor = '';
+    }, 300);
 }
 
+document.addEventListener('keydown', function(event) {
+    console.log('Key pressed', event.key);
 
-document.addEventListener('keydown', function(event) {  // Listen for keydown events
-    console.log('Key pressed', event.key); 
-
-    if (event.key >= '0' && event.key <= '9') { // Check if the key is a number
+    if (event.key >= '0' && event.key <= '9') {
         appendToDisplay(event.key);
-    } else if (event.key === '.') { // Check if the key is a decimal point
+    } else if (event.key === '.') {
         appendToDisplay('.');
-    } else if (event.key === '+') { // Check if the key is a plus sign
+    } else if (event.key === '+') {
         appendToDisplay('+');
-    } else if (event.key === '-') { // Check if the key is a minus sign
+    } else if (event.key === '-') {
         appendToDisplay('-');
-    } else if (event.key === '*') { // Check if the key is a multiplication sign
+    } else if (event.key === '*') {
         appendToDisplay('*');
-    } else if (event.key === '/') { // Check if the key is a division sign
-        event.preventDefault(); // Prevent default behavior for division key
-        appendToDisplay('/');    
+    } else if (event.key === '/') {
+        event.preventDefault();
+        appendToDisplay('/');
     }
-      else if (event.key === 'Enter' || event.key === '=') { // Check for Enter or Equals key
+
+    else if (event.key === 'Enter' || event.key === '=') {
         calculate();
-    } else if (event.key === 'Escape' || event.key === 'c' || event.key === 'C') { // Check for Escape or 'c' key
+    } else if (event.key === 'Escape' || event.key === 'c' || event.key === 'C') {
         clearDisplay();
-    } else if (event.key === 'Backspace') { // Check for Backspace key
+    } else if (event.key === 'Backspace') {
         deleteLast();
     }
 })
 
-
-// Testing function to see whatever displaced we get the value and if not displaced there is no value displace element not found
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Calculate loaded successfully');
+    console.log('Calculator loaded successfully');
     console.log('Display element', display);
 
     if (display) {
@@ -151,4 +197,3 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('Display element not found');
     }
 })
-
